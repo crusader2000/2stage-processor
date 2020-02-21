@@ -1,3 +1,4 @@
+///////////////////////
 module processor(
   input clk,
   output reg [31:0] instr,
