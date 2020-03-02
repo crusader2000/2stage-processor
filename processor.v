@@ -17,7 +17,7 @@ module processor(
   reg [29:0] branch_mux;
   reg [29:0] mux2_1;
   reg [5:0] prev_pc;
-  reg [31:0] prev_instr,decode_instr;
+  reg [31:0] prev_instr,decode_instr,branch_instr;
   reg jump,branch,zero;
   ////////////DECODE UNIT AND EXECUTE/////////////////////////////////
   reg [31:0] main_memory [63:0];
@@ -36,7 +36,7 @@ module processor(
   reg alu_op_2,alu_op_1,alu_op_0;
   reg alu_out;
   reg sltiu;
-
+  reg bgtz_bne_blez;
   //Register Write and Register Destination
   reg [4:0] rw,sa;
 
@@ -65,14 +65,12 @@ module processor(
   //  $display("fetch %t %b %b %b %b",$time,instr_memory[pc],instr_memory[a],instr_memory[b],instr_memory[c]);
 	 $display("fetch %t %b",$time,instr);
     // instr=prev_instr;
-    if (instr[15])
+    if (branch_instr[15])
         sign_extension = 14'b11111111111111;
     else
         sign_extension = 14'b00000000000000;
 
-//    sign_extension = 14'b11111111111111 & instr[15] + 14'b00000000000000 & !instr[15];
-
-    sgn_extnd_signal = {sign_extension,instr[15:0]};
+    sgn_extnd_signal = {sign_extension,branch_instr[15:0]};
     mux_0=pc[31:2] + 30'b000000000000000000000000000001;
     mux_1= mux_0 + sgn_extnd_signal;
     //branch_mux=((~(branch && zero ))& mux_0) | ((branch && zero )& mux_1);
@@ -84,11 +82,19 @@ module processor(
 
 
     mux2_1={prev_pc[31:28],prev_instr[25:0]};
+
     if (jump) 
       pc={mux2_1,2'b00};
     else
       pc={branch_mux,2'b00};
     //pc={pc,2'b00};
+    $display("branch %b zero %b",branch , zero);
+   $display("branch & zero %b",branch & zero);
+   $display("pc %b",pc);
+   $display("sgn_extnd_signal %b",sgn_extnd_signal);
+  $display("sign_extension %b",sign_extension);
+   $display("mux_0 %b",mux_0);
+   $display("mux_1 %b",mux_1);
     prev_instr=instr;
     prev_pc=pc;
   end
@@ -110,13 +116,20 @@ module processor(
             
     ext_op=(decode_instr[31] & (~decode_instr[30]) & (~decode_instr[29]) & (~decode_instr[28]) & (decode_instr[27]) & (decode_instr[26]))|
           (decode_instr[31] & (~decode_instr[30]) & (decode_instr[29]) & (~decode_instr[28]) & (decode_instr[27]) & (decode_instr[26]))|
-          ((~decode_instr[31]) & (~decode_instr[30]) & (decode_instr[29]) & (~decode_instr[28]) & (decode_instr[27]) & (~decode_instr[26]));
+          ((~decode_instr[31]) & (~decode_instr[30]) & (decode_instr[29]) & (~decode_instr[28]) & (decode_instr[27]) & (~decode_instr[26]))|
+          (~decode_instr[31] & (~decode_instr[30]) & (~decode_instr[29]) & (decode_instr[28]) & (decode_instr[27]) & (decode_instr[26]))|
+          (~decode_instr[31] & ~decode_instr[30] & ~decode_instr[29] & decode_instr[28] & decode_instr[27] & ~decode_instr[26]) ;
+
 
     alu_op_2=(~decode_instr[31] & (~decode_instr[30]) & (~decode_instr[29]) & (~decode_instr[28]) & (~decode_instr[27]) & (~decode_instr[26]));
     alu_op_1=(~decode_instr[31] & (~decode_instr[30]) & (decode_instr[29]) & (decode_instr[28]) & (~decode_instr[27]) & (decode_instr[26]));
     alu_op_0=(~decode_instr[31] & (~decode_instr[30]) & (~decode_instr[29]) & (decode_instr[28]) & (~decode_instr[27]) & (~decode_instr[26]));
 
-    branch=(~decode_instr[31] & (~decode_instr[30]) & (~decode_instr[29]) & (decode_instr[28]) & (~decode_instr[27]) & (~decode_instr[26]));
+    branch=(~decode_instr[31] & (~decode_instr[30]) & (~decode_instr[29]) & (decode_instr[28]) & (~decode_instr[27]) & (~decode_instr[26]))|
+    (~decode_instr[31] & (~decode_instr[30]) & (~decode_instr[29]) & (decode_instr[28]) & (~decode_instr[27]) & (decode_instr[26]))|
+    (~decode_instr[31] & (~decode_instr[30]) & (~decode_instr[29]) & (decode_instr[28]) & (decode_instr[27]) & (decode_instr[26]))|
+    (~decode_instr[31] & ~decode_instr[30] & ~decode_instr[29] & decode_instr[28] & decode_instr[27] & ~decode_instr[26]) ;
+
     jump=(~decode_instr[31] & (~decode_instr[30]) & (~decode_instr[29]) & (~decode_instr[28]) & (decode_instr[27]) & (~decode_instr[26]))|
          (~decode_instr[31] & (~decode_instr[30]) & (~decode_instr[29]) & (~decode_instr[28]) & (decode_instr[27]) & (decode_instr[26]));
     
@@ -129,10 +142,10 @@ module processor(
                 (~decode_instr[31] & ~decode_instr[30] & decode_instr[29] & decode_instr[28] & decode_instr[27] & ~decode_instr[26]) |
                 (decode_instr[5] & ~decode_instr[4] & decode_instr[3] & ~decode_instr[2] & decode_instr[1] & ~decode_instr[0] & alu_op_2 & ~alu_op_1 & ~alu_op_0) |
                 (decode_instr[5] & ~decode_instr[4] & decode_instr[3] & decode_instr[2] & decode_instr[1] & decode_instr[0] & alu_op_2 & ~alu_op_1 & ~alu_op_0) |
-                (~decode_instr[31] & ~decode_instr[30] & ~decode_instr[29] & decode_instr[28] & decode_instr[27] & decode_instr[26]) |
                 (~decode_instr[31] & ~decode_instr[30] & ~decode_instr[29] & decode_instr[28] & decode_instr[27] & ~decode_instr[26]) |
               (~decode_instr[31] & ~decode_instr[30] & decode_instr[29] & ~decode_instr[28] & decode_instr[27] & decode_instr[26]) |
-              (decode_instr[5] & ~decode_instr[4] & decode_instr[3] & ~decode_instr[2] & decode_instr[1] & decode_instr[0] & alu_op_2 & ~alu_op_1 & ~alu_op_0) ;
+              (decode_instr[5] & ~decode_instr[4] & decode_instr[3] & ~decode_instr[2] & decode_instr[1] & decode_instr[0] & alu_op_2 & ~alu_op_1 & ~alu_op_0)  |
+    (~decode_instr[31] & ~decode_instr[30] & ~decode_instr[29] & decode_instr[28] & decode_instr[27] & ~decode_instr[26]) ;
 
     
     alu_ctr[1]=(decode_instr[5] & ~decode_instr[4] & ~decode_instr[3] & decode_instr[2] & ~decode_instr[1] & ~decode_instr[0] & alu_op_2 & ~alu_op_1 & ~alu_op_0) |
@@ -141,7 +154,11 @@ module processor(
                (~decode_instr[5] & ~decode_instr[4] & ~decode_instr[3] & ~decode_instr[2] & ~decode_instr[1] & ~decode_instr[0] & alu_op_2 & ~alu_op_1 & ~alu_op_0) |
                (~decode_instr[5] & ~decode_instr[4] & ~decode_instr[3] & decode_instr[2] & ~decode_instr[1] & ~decode_instr[0] & alu_op_2 & ~alu_op_1 & ~alu_op_0) |
                (~decode_instr[31] & ~decode_instr[30] & ~decode_instr[29] & decode_instr[28] & decode_instr[27] & ~decode_instr[26]) |
-               (~decode_instr[31] & ~decode_instr[30] & ~decode_instr[29] & decode_instr[28] & decode_instr[27] & decode_instr[26]) ;
+               (~decode_instr[31] & ~decode_instr[30] & ~decode_instr[29] & decode_instr[28] & decode_instr[27] & decode_instr[26]) |
+               (~decode_instr[31] & ~decode_instr[30] & ~decode_instr[29] & decode_instr[28] & ~decode_instr[27] & ~decode_instr[26]) |
+              (~decode_instr[31] & ~decode_instr[30] & ~decode_instr[29] & decode_instr[28] & decode_instr[27] & decode_instr[26])  |
+    (~decode_instr[31] & ~decode_instr[30] & ~decode_instr[29] & decode_instr[28] & decode_instr[27] & ~decode_instr[26]) ;
+
 
 
     alu_ctr[2]=(decode_instr[5] & ~decode_instr[4] & ~decode_instr[3] & decode_instr[2] & ~decode_instr[1] & ~decode_instr[0] & alu_op_2 & ~alu_op_1 & ~alu_op_0) |
@@ -152,9 +169,8 @@ module processor(
               (decode_instr[5] & ~decode_instr[4] & decode_instr[3] & ~decode_instr[2] & decode_instr[1] & ~decode_instr[0] & alu_op_2 & ~alu_op_1 & ~alu_op_0) |
               (~decode_instr[5] & ~decode_instr[4] & ~decode_instr[3] & decode_instr[2] & decode_instr[1] & ~decode_instr[0] & alu_op_2 & ~alu_op_1 & ~alu_op_0) |
               (~decode_instr[31] & ~decode_instr[30] & ~decode_instr[29] & decode_instr[28] & ~decode_instr[27] & ~decode_instr[26]) |
-              (~decode_instr[31] & ~decode_instr[30] & ~decode_instr[29] & decode_instr[28] & decode_instr[27] & decode_instr[26])|
-              (~decode_instr[31] & ~decode_instr[30] & ~decode_instr[29] & decode_instr[28] & decode_instr[27] & ~decode_instr[26]) |
-              (~decode_instr[31] & ~decode_instr[30] & ~decode_instr[29] & decode_instr[28] & ~decode_instr[27] & decode_instr[26]) ;
+              (~decode_instr[31] & ~decode_instr[30] & ~decode_instr[29] & decode_instr[28] & ~decode_instr[27] & decode_instr[26]) |
+              (~decode_instr[31] & (~decode_instr[30]) & (~decode_instr[29]) & (decode_instr[28]) & (~decode_instr[27]) & (decode_instr[26]));
 
     alu_ctr[3]=(decode_instr[5] & ~decode_instr[4] & ~decode_instr[3] & decode_instr[2] & decode_instr[1] & decode_instr[0] & alu_op_2 & ~alu_op_1 & ~alu_op_0) |
               (decode_instr[5] & ~decode_instr[4] & ~decode_instr[3] & decode_instr[2] & ~decode_instr[1] & decode_instr[0] & alu_op_2 & ~alu_op_1 & ~alu_op_0) |
@@ -163,13 +179,15 @@ module processor(
               (~decode_instr[31] & ~decode_instr[30] & decode_instr[29] & decode_instr[28] & decode_instr[27] & ~decode_instr[26]) |
               (decode_instr[5] & ~decode_instr[4] & decode_instr[3] & ~decode_instr[2] & decode_instr[1] & ~decode_instr[0] & alu_op_2 & ~alu_op_1 & ~alu_op_0) |
               (~decode_instr[31] & ~decode_instr[30] & ~decode_instr[29] & decode_instr[28] & ~decode_instr[27] & ~decode_instr[26]) |
-              (~decode_instr[31] & ~decode_instr[30] & ~decode_instr[29] & decode_instr[28] & decode_instr[27] & decode_instr[26])|
-              (~decode_instr[31] & ~decode_instr[30] & ~decode_instr[29] & decode_instr[28] & decode_instr[27] & ~decode_instr[26]) |
-              (~decode_instr[31] & ~decode_instr[30] & ~decode_instr[29] & decode_instr[28] & ~decode_instr[27] & decode_instr[26]) ;
+              (~decode_instr[31] & ~decode_instr[30] & ~decode_instr[29] & decode_instr[28] & ~decode_instr[27] & decode_instr[26]) |
+              (~decode_instr[31] & (~decode_instr[30]) & (~decode_instr[29]) & (decode_instr[28]) & (~decode_instr[27]) & (decode_instr[26]));
+
 
     alu_ctr[4]=(~decode_instr[31] & ~decode_instr[30] & decode_instr[29] & ~decode_instr[28] & decode_instr[27] & ~decode_instr[26]) |
               (~decode_instr[31] & ~decode_instr[30] & decode_instr[29] & ~decode_instr[28] & decode_instr[27] & decode_instr[26]) |
-              (decode_instr[5] & ~decode_instr[4] & decode_instr[3] & ~decode_instr[2] & decode_instr[1] & decode_instr[0] & alu_op_2 & ~alu_op_1 & ~alu_op_0) ;
+              (decode_instr[5] & ~decode_instr[4] & decode_instr[3] & ~decode_instr[2] & decode_instr[1] & decode_instr[0] & alu_op_2 & ~alu_op_1 & ~alu_op_0) |
+              (~decode_instr[31] & ~decode_instr[30] & ~decode_instr[29] & decode_instr[28] & decode_instr[27] & decode_instr[26])  |
+    (~decode_instr[31] & ~decode_instr[30] & ~decode_instr[29] & decode_instr[28] & decode_instr[27] & ~decode_instr[26]) ;
 
 
 
@@ -200,6 +218,11 @@ module processor(
 
     sltiu=(~decode_instr[31] & (~decode_instr[30]) & (decode_instr[29]) & (~decode_instr[28]) & (decode_instr[27]) & (decode_instr[26]));
 
+    bgtz_bne_blez=(~decode_instr[31] & (~decode_instr[30]) & (~decode_instr[29]) & (decode_instr[28]) & (~decode_instr[27]) & (decode_instr[26]))|
+    (~decode_instr[31] & ~decode_instr[30] & ~decode_instr[29] & decode_instr[28] & decode_instr[27] & decode_instr[26]) |
+    (~decode_instr[31] & ~decode_instr[30] & ~decode_instr[29] & decode_instr[28] & decode_instr[27] & ~decode_instr[26]) ;
+
+
     //////////////////////
     if (reg_wr) begin
       if (reg_dst)
@@ -228,6 +251,8 @@ module processor(
 
     if (sll_n_sra_srl | sllv_n_srav_srlv)
       ip1=main_memory[rt];
+    else if(bgtz_bne_blez)
+      ip1=imm;
     else
        ip1=main_memory[rs];
 
@@ -269,6 +294,10 @@ module processor(
           ALU_Out = ($signed(ip1)<$signed(ip2))?32'd1:32'd0 ;
       5'b10001: //unsigned less than comparison
           ALU_Out = (ip1<ip2)?32'd1:32'd0 ;
+      5'b10010: //signed Greater than comparison to zero
+          ALU_Out=($signed(ip1)>0)?32'd1:32'd0 ;
+      5'b10011: //signed less than or equal comparison to zero
+          ALU_Out=($signed(ip1)<=0)?32'd1:32'd0 ;
       default: begin
       end
       endcase
@@ -278,9 +307,13 @@ module processor(
       else 
        main_memory[rw]= 32'bxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx;
 
-      zero=ALU_Out[31]|ALU_Out[30]|ALU_Out[29]|ALU_Out[28]|ALU_Out[27]|ALU_Out[26]|ALU_Out[25]|ALU_Out[24]|ALU_Out[23]|ALU_Out[22]|ALU_Out[21]|
-           ALU_Out[20]|ALU_Out[19]|ALU_Out[18]|ALU_Out[17]|ALU_Out[16]|ALU_Out[15]|ALU_Out[14]|ALU_Out[13]|ALU_Out[12]|ALU_Out[11]|
-           ALU_Out[10]|ALU_Out[9]|ALU_Out[8]|ALU_Out[7]|ALU_Out[6]|ALU_Out[5]|ALU_Out[4]|ALU_Out[3]|ALU_Out[2]|ALU_Out[1]|ALU_Out[0];
+      zero=ALU_Out[0];
+
+      if(branch)
+        branch_instr=decode_instr;
+      else
+        branch_instr=32'bxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx;
+      
       $display("decode rs %b",rs);
       $display("decode rt %b",rt);
       $display("decode rd %b",rd);
