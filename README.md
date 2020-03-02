@@ -37,3 +37,4 @@ This a 2-stage [MIPS ISA](https://s3-eu-west-1.amazonaws.com/downloads-mips/docu
 26. JAL
 27. LB
 28. SB
+
