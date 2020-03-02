@@ -7,3 +7,33 @@ Code for the project for the course Introduction to Processor Architecture
 * main_memory.mem - Contains the register memory with the R0 initialized to zero
 * processor_tb.v - Contains the driver code to test the code
 
+## Description
+This a 2-stage (https://s3-eu-west-1.amazonaws.com/downloads-mips/documents/MD00086-2B-MIPS32BIS-AFP-6.06.pdf)[MIPS ISA] based processor capable of decoding and executing 28 instructions, namely
+a. ADD
+b. ADDI
+c. AND
+d. ANDI
+e. NOR
+f. OR
+g. ORI
+h. SLL
+i. SLLV
+j. SRA
+k. SRAV
+l. SRL
+m. SRLV
+n. SUB
+o. XOR
+p. XORI
+q. SLT
+r. SLTU
+s. SLTI
+t. SLTIU
+u. BEQ
+v. BGTZ
+w. BLEZ
+x. BNE
+y. J
+z. JAL
+aa. LB
+bb. SB
