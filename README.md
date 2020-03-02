@@ -8,7 +8,7 @@ Code for the project for the course Introduction to Processor Architecture
 * processor_tb.v - Contains the driver code to test the code
 
 ## Description
-This a 2-stage (https://s3-eu-west-1.amazonaws.com/downloads-mips/documents/MD00086-2B-MIPS32BIS-AFP-6.06.pdf)[MIPS ISA] based processor capable of decoding and executing 28 instructions, namely
+This a 2-stage [MIPS ISA](https://s3-eu-west-1.amazonaws.com/downloads-mips/documents/MD00086-2B-MIPS32BIS-AFP-6.06.pdf) based processor capable of decoding and executing 28 instructions, namely
 a. ADD
 b. ADDI
 c. AND
