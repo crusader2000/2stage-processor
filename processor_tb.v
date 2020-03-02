@@ -14,7 +14,7 @@ module processor_tb;
 		.pc(pc),
 		.ALU_Out(ALU_Out)
 	);
-	initial #200 $finish;
+	initial #140 $finish;
 	initial begin
 		// Initialize Inputs
 		#100;
