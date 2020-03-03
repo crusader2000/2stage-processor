@@ -1,5 +1,5 @@
 # 2-Stage MIPS Processor
-Code for the project for the course Introduction to Processor Architecture
+Code for the project for the course Introduction to Processor Architecture (Spring 2020)
 
 ## Contents
 * processor.v - Contains the whole code in one module
