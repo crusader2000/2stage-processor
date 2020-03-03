@@ -16,11 +16,12 @@ module processor(
   reg [31:0] a,b,c;
   reg [29:0] branch_mux;
   reg [29:0] mux2_1;
-  reg [5:0] prev_pc;
+  reg [31:0] prev_pc,jump_pc,jump_instr;
   reg [31:0] prev_instr,decode_instr,branch_instr;
-  reg jump,branch,zero;
+  reg jump,branch,zero,fetch_zero;
   ////////////DECODE UNIT AND EXECUTE/////////////////////////////////
-  reg [31:0] main_memory [63:0];
+  reg [31:0] main_memory [31:0];
+  reg [31:0] data_memory [63:0];
  // initial begin
    // $readmemb("main_memory.mem",main_memory);
  // end
@@ -37,6 +38,7 @@ module processor(
   reg alu_out;
   reg sltiu;
   reg bgtz_bne_blez;
+  reg lb,sb,jal;
   //Register Write and Register Destination
   reg [4:0] rw,sa;
 
@@ -58,13 +60,12 @@ module processor(
 
   always@(negedge clk) begin
     decode_instr=instr;
-    a=pc+31'd1;
-    b=pc+31'd2;
-    c=pc+31'd3;
+    a=pc+32'd1;
+    b=pc+32'd2;
+    c=pc+32'd3;
     instr = {instr_memory[pc],instr_memory[a],instr_memory[b],instr_memory[c]};
-  //  $display("fetch %t %b %b %b %b",$time,instr_memory[pc],instr_memory[a],instr_memory[b],instr_memory[c]);
+//  $display("fetch %t %b %b %b %b",$time,instr_memory[pc],instr_memory[a],instr_memory[b],instr_memory[c]);
 	 $display("fetch %t %b",$time,instr);
-    // instr=prev_instr;
     if (branch_instr[15])
         sign_extension = 14'b11111111111111;
     else
@@ -73,31 +74,31 @@ module processor(
     sgn_extnd_signal = {sign_extension,branch_instr[15:0]};
     mux_0=pc[31:2] + 30'b000000000000000000000000000001;
     mux_1= mux_0 + sgn_extnd_signal;
-    //branch_mux=((~(branch && zero ))& mux_0) | ((branch && zero )& mux_1);
 
-    if(branch & zero)
-        branch_mux=mux_1;
+    if(branch & fetch_zero) 
+        branch_mux=mux_1-30'b000000000000000000000000000001;
     else
         branch_mux=mux_0;
 
-
-    mux2_1={prev_pc[31:28],prev_instr[25:0]};
+    mux2_1={jump_pc[31:28],jump_instr[25:0]};
 
     if (jump) 
       pc={mux2_1,2'b00};
     else
       pc={branch_mux,2'b00};
-    //pc={pc,2'b00};
-    $display("branch %b zero %b",branch , zero);
-   $display("branch & zero %b",branch & zero);
-   $display("pc %b",pc);
-   $display("sgn_extnd_signal %b",sgn_extnd_signal);
-  $display("sign_extension %b",sign_extension);
-   $display("mux_0 %b",mux_0);
-   $display("mux_1 %b",mux_1);
+
+    $display("branch %b zero %b",branch , fetch_zero);
+    $display("branch & zero %b",branch & fetch_zero);
+    $display("pc %b",pc);
+    $display("sgn_extnd_signal %b",sgn_extnd_signal);
+    $display("sign_extension %b",sign_extension);
+    $display("mux_0 %b",mux_0);
+    $display("mux_1 %b",mux_1);
     prev_instr=instr;
     prev_pc=pc;
   end
+
+  
 
   always @(negedge clk) begin   
     $display("decode %t %b",$time,decode_instr);
@@ -112,14 +113,18 @@ module processor(
            ((~decode_instr[31]) & (~decode_instr[30]) & (decode_instr[29]) & (~decode_instr[28]) & (decode_instr[27]) & (~decode_instr[26]))|
            ((~decode_instr[31]) & (~decode_instr[30]) & (decode_instr[29]) & (~decode_instr[28]) & (decode_instr[27]) & (~decode_instr[26]))|
            (~decode_instr[31] & (~decode_instr[30]) & (decode_instr[29]) & (~decode_instr[28]) & (decode_instr[27]) & (~decode_instr[26]))|
-              (~decode_instr[31] & ~decode_instr[30] & decode_instr[29] & ~decode_instr[28] & decode_instr[27] & decode_instr[26]) ;
+              (~decode_instr[31] & ~decode_instr[30] & decode_instr[29] & ~decode_instr[28] & decode_instr[27] & decode_instr[26]) |
+              (decode_instr[31] & ~decode_instr[30] & decode_instr[29] & ~decode_instr[28] & ~decode_instr[27] & ~decode_instr[26]) ;
             
     ext_op=(decode_instr[31] & (~decode_instr[30]) & (~decode_instr[29]) & (~decode_instr[28]) & (decode_instr[27]) & (decode_instr[26]))|
           (decode_instr[31] & (~decode_instr[30]) & (decode_instr[29]) & (~decode_instr[28]) & (decode_instr[27]) & (decode_instr[26]))|
           ((~decode_instr[31]) & (~decode_instr[30]) & (decode_instr[29]) & (~decode_instr[28]) & (decode_instr[27]) & (~decode_instr[26]))|
           (~decode_instr[31] & (~decode_instr[30]) & (~decode_instr[29]) & (decode_instr[28]) & (decode_instr[27]) & (decode_instr[26]))|
-          (~decode_instr[31] & ~decode_instr[30] & ~decode_instr[29] & decode_instr[28] & decode_instr[27] & ~decode_instr[26]) ;
-
+          (~decode_instr[31] & (~decode_instr[30]) & (decode_instr[29]) & (~decode_instr[28]) & (~decode_instr[27]) & (~decode_instr[26]))|
+          (~decode_instr[31] & ~decode_instr[30] & ~decode_instr[29] & decode_instr[28] & decode_instr[27] & ~decode_instr[26]) |
+          (decode_instr[31] & ~decode_instr[30] & ~decode_instr[29] & ~decode_instr[28] & ~decode_instr[27] & ~decode_instr[26]) |
+          (decode_instr[31] & ~decode_instr[30] & decode_instr[29] & ~decode_instr[28] & ~decode_instr[27] & ~decode_instr[26]) |
+          (decode_instr[31] & ~decode_instr[30] & ~decode_instr[29] & ~decode_instr[28] & ~decode_instr[27] & ~decode_instr[26]) ;
 
     alu_op_2=(~decode_instr[31] & (~decode_instr[30]) & (~decode_instr[29]) & (~decode_instr[28]) & (~decode_instr[27]) & (~decode_instr[26]));
     alu_op_1=(~decode_instr[31] & (~decode_instr[30]) & (decode_instr[29]) & (decode_instr[28]) & (~decode_instr[27]) & (decode_instr[26]));
@@ -133,6 +138,8 @@ module processor(
     jump=(~decode_instr[31] & (~decode_instr[30]) & (~decode_instr[29]) & (~decode_instr[28]) & (decode_instr[27]) & (~decode_instr[26]))|
          (~decode_instr[31] & (~decode_instr[30]) & (~decode_instr[29]) & (~decode_instr[28]) & (decode_instr[27]) & (decode_instr[26]));
     
+    jal= (~decode_instr[31] & (~decode_instr[30]) & (~decode_instr[29]) & (~decode_instr[28]) & (decode_instr[27]) & (decode_instr[26]));
+
     alu_ctr[0]=(decode_instr[5] & ~decode_instr[4] & ~decode_instr[3] & decode_instr[2] & ~decode_instr[1] & ~decode_instr[0] & alu_op_2 & ~alu_op_1 & ~alu_op_0) |
                 (~decode_instr[31] & ~decode_instr[30] & decode_instr[29] & decode_instr[28] & ~decode_instr[27] & ~decode_instr[26]) |
                 (~decode_instr[5] & ~decode_instr[4] & ~decode_instr[3] & ~decode_instr[2] & ~decode_instr[1] & ~decode_instr[0] & alu_op_2 & ~alu_op_1 & ~alu_op_0) |
@@ -198,7 +205,9 @@ module processor(
              (~decode_instr[31] & (~decode_instr[30]) & (decode_instr[29]) & (decode_instr[28]) & (decode_instr[27]) & (~decode_instr[26]))|
            ((~decode_instr[31]) & (~decode_instr[30]) & (decode_instr[29]) & (~decode_instr[28]) & (decode_instr[27]) & (~decode_instr[26]))|
            (~decode_instr[31] & (~decode_instr[30]) & (decode_instr[29]) & (~decode_instr[28]) & (decode_instr[27]) & (~decode_instr[26]))|  
-            (~decode_instr[31] & (~decode_instr[30]) & (decode_instr[29]) & (~decode_instr[28]) & (decode_instr[27]) & (decode_instr[26]));
+            (~decode_instr[31] & (~decode_instr[30]) & (decode_instr[29]) & (~decode_instr[28]) & (decode_instr[27]) & (decode_instr[26]))|
+            (decode_instr[31] & ~decode_instr[30] & decode_instr[29] & ~decode_instr[28] & ~decode_instr[27] & ~decode_instr[26]) |
+            (decode_instr[31] & ~decode_instr[30] & ~decode_instr[29] & ~decode_instr[28] & ~decode_instr[27] & ~decode_instr[26]) ;
 
 
     mem_wr=decode_instr[31] & (~decode_instr[30]) & (decode_instr[29]) & (~decode_instr[28]) & (decode_instr[27]) & (decode_instr[26]);
@@ -222,11 +231,16 @@ module processor(
     (~decode_instr[31] & ~decode_instr[30] & ~decode_instr[29] & decode_instr[28] & decode_instr[27] & decode_instr[26]) |
     (~decode_instr[31] & ~decode_instr[30] & ~decode_instr[29] & decode_instr[28] & decode_instr[27] & ~decode_instr[26]) ;
 
+    lb=(decode_instr[31] & ~decode_instr[30] & ~decode_instr[29] & ~decode_instr[28] & ~decode_instr[27] & ~decode_instr[26]) ;
+
+    sb=(decode_instr[31] & ~decode_instr[30] & decode_instr[29] & ~decode_instr[28] & ~decode_instr[27] & ~decode_instr[26]) ;
 
     //////////////////////
     if (reg_wr) begin
       if (reg_dst)
         rw=rd;
+      else if(jal)
+        rw=32'd31;
       else 
         rw=rt;
       end
@@ -246,6 +260,8 @@ module processor(
       ip2={27'd0,sa};
     else if (sllv_n_srav_srlv)
       ip2=main_memory[rs];
+    else if(jal)
+        ip2=32'd8;
     else
   		ip2=main_memory[rt]; 
 
@@ -253,6 +269,8 @@ module processor(
       ip1=main_memory[rt];
     else if(bgtz_bne_blez)
       ip1=imm;
+    else if(jal)
+      ip1=pc;// Pretty confusing here dont know whether the pc has already increment by the time this assignment is done or not. Assuming it has been done for now
     else
        ip1=main_memory[rs];
 
@@ -302,17 +320,34 @@ module processor(
       end
       endcase
 
-      if (reg_wr)
+      if (reg_wr & ~lb & ~sb)
         main_memory[rw] = ALU_Out;
+      else if (lb)
+        main_memory[rt] = data_memory[ALU_Out];
+      else if (sb)
+        data_memory[ALU_Out]=main_memory[rw];
       else 
        main_memory[rw]= 32'bxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx;
 
       zero=ALU_Out[0];
 
-      if(branch)
+      if(branch) begin
         branch_instr=decode_instr;
-      else
+        fetch_zero=zero;
+      end
+      else begin
         branch_instr=32'bxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx;
+        fetch_zero=1'bx;
+      end
+
+      if(jump) begin
+        jump_instr=decode_instr;
+        jump_pc=pc-32'd8; // Pretty confusing here dont know whether the pc has already increment by the time this assignment is done or not. Assuming it has been done for now
+      end
+      else begin
+        jump_instr=32'bxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx;
+        jump_pc=32'bxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx;
+      end
       
       $display("decode rs %b",rs);
       $display("decode rt %b",rt);
@@ -327,8 +362,10 @@ module processor(
       $display("decode ext_op %b",ext_op & imm[15]);
       $display("decode Jump %b",jump);
       $display("decode Branch %b",branch);
-      $display("decode main_memory[rw] %b\n",main_memory[rw]);
-      //Need to make changes for Load and Store Word
+      $display("decode sb %b",sb); 
+      $display("decode lb %b",lb);
+      $display("decode main_memory[rw] %b",main_memory[rw]);
+      $display("data_memory[ALU_Out] %b\n",data_memory[ALU_Out]);
     end
 
 endmodule
