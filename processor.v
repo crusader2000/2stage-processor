@@ -1,14 +1,18 @@
 module processor(
     input clk,
+	 input reset,
     output reg [31:0] instr,
     output reg [31:0] pc,
-    output reg [31:0] ALU_Out
+    output reg [31:0] ALU_Out,
+	 // input channel
+    input   inp_valid_i,
+    output  inp_ready_o,
+    // output channel
+    output  out_valid_o,
+    input   out_ready_i
   );
   //////////////////FETCH UNIT////////////////////////// 
-  reg [7:0] instr_memory [11:0];
-  initial begin
-    $readmemb("instr_memory.mem",instr_memory);
-  end
+  reg [7:0] instr_memory [87:0];
   reg [13:0] sign_extension;
   reg [29:0] sgn_extnd_signal;
   reg [29:0] mux_0;
@@ -22,9 +26,6 @@ module processor(
   ////////////DECODE UNIT AND EXECUTE/////////////////////////////////
   reg [31:0] main_memory [31:0];
   reg [7:0] data_memory [63:0];
- // initial begin
-   // $readmemb("main_memory.mem",main_memory);
- // end
   reg reg_dst;
   reg reg_wr;
   reg ext_op;
@@ -41,14 +42,20 @@ module processor(
   reg lb,sb,jal;
   //Register Write and Register Destination
   reg [4:0] rw,sa;
-
   //EXTENDER
   reg [15:0] ext;
-
   // INSTR
   reg sll_n_sra_srl,sllv_n_srav_srlv;
   reg [31:0] ip1,ip2,imm;
+  
+  //FPGA Part
+  wire wr_en;
+reg full_r;
+
+assign wr_en = ~full_r | out_ready_i;
+ 
   initial begin
+  full_r=0;
   jump=0;
   branch=0;
   zero=0;
@@ -56,15 +63,119 @@ module processor(
   pc=0;
   instr=0;
   main_memory[0]=32'd0;
+	
+instr_memory[32'd0]=8'b00100000;
+instr_memory[32'd1]=8'b00000001;
+instr_memory[32'd2]=8'b00000000;
+instr_memory[32'd3]=8'b00000101;
+
+instr_memory[32'd4]=8'b00100000;
+instr_memory[32'd5]=8'b00000010;
+instr_memory[32'd6]=8'b00000000;
+instr_memory[32'd7]=8'b00000110;
+
+instr_memory[32'd8]=8'b00010000;
+instr_memory[32'd9]=8'b00100000;
+instr_memory[32'd10]=8'b00000000;
+instr_memory[32'd11]=8'b00001101;
+
+instr_memory[32'd12]=8'b00010000;
+instr_memory[32'd13]=8'b01000000;
+instr_memory[32'd14]=8'b00000000;
+instr_memory[32'd15]=8'b00010000;
+
+instr_memory[32'd16]=8'b00000000;
+instr_memory[32'd17]=8'b00100010;
+instr_memory[32'd18]=8'b00100000;
+instr_memory[32'd19]=8'b00100010 ;
+instr_memory[32'd20]=8'b00011100;
+instr_memory[32'd21]=8'b10000000;
+instr_memory[32'd22]=8'b00000000;
+instr_memory[32'd23]=8'b00000011 ;
+instr_memory[32'd24]=8'b00000000;
+instr_memory[32'd25]=8'b00000000;
+instr_memory[32'd26]=8'b00000000;
+instr_memory[32'd27]=8'b00000000;
+instr_memory[32'd28]=8'b00000000 ;
+instr_memory[32'd29]=8'b00000000;
+instr_memory[32'd30]=8'b00000000;
+instr_memory[32'd31]=8'b00000000;
+instr_memory[32'd32]=8'b00000000;
+instr_memory[32'd33]=8'b01000001;
+instr_memory[32'd34]=8'b00010000;
+instr_memory[32'd35]=8'b00100010;
+instr_memory[32'd36]=8'b00001000;
+instr_memory[32'd37]=8'b00000000;
+instr_memory[32'd38]=8'b00000000;
+instr_memory[32'd39]=8'b00000010;
+instr_memory[32'd40]=8'b00000000;
+instr_memory[32'd41]=8'b00000000;
+instr_memory[32'd42]=8'b00000000;
+instr_memory[32'd43]=8'b00000000;
+instr_memory[32'd44]=8'b00000000;
+instr_memory[32'd45]=8'b00000000;
+instr_memory[32'd46]=8'b00000000;
+instr_memory[32'd47]=8'b00000000;
+instr_memory[32'd48]=8'b00000000;
+instr_memory[32'd49]=8'b00100010;
+instr_memory[32'd50]=8'b00001000;
+instr_memory[32'd51]=8'b00100010;
+instr_memory[32'd52]=8'b00001000;
+instr_memory[32'd53]=8'b00000000;
+instr_memory[32'd54]=8'b00000000;
+instr_memory[32'd55]=8'b00000010;
+instr_memory[32'd56]=8'b00000000;
+instr_memory[32'd57]=8'b00000000;
+instr_memory[32'd58]=8'b00000000;
+instr_memory[32'd59]=8'b00000000;
+instr_memory[32'd60]=8'b00000000;
+instr_memory[32'd61]=8'b00000000;
+instr_memory[32'd62]=8'b00000000;
+instr_memory[32'd63]=8'b00000000;
+instr_memory[32'd64]=8'b00000000;
+instr_memory[32'd65]=8'b01100000;
+instr_memory[32'd66]=8'b00010000;
+instr_memory[32'd67]=8'b00100000;
+instr_memory[32'd68]=8'b00001000;
+instr_memory[32'd69]=8'b00000000;
+instr_memory[32'd70]=8'b00000000;
+instr_memory[32'd71]=8'b00010110;
+instr_memory[32'd72]=8'b00000000;
+instr_memory[32'd73]=8'b00000000;
+instr_memory[32'd74]=8'b00000000;
+instr_memory[32'd75]=8'b00000000;
+instr_memory[32'd76]=8'b00000000;
+instr_memory[32'd77]=8'b00000000;
+instr_memory[32'd78]=8'b00000000;
+instr_memory[32'd79]=8'b00000000;
+instr_memory[32'd80]=8'b00000000;
+instr_memory[32'd81]=8'b01100000;
+instr_memory[32'd82]=8'b00001000;
+instr_memory[32'd83]=8'b00100000;
+instr_memory[32'd84]=8'b00000000;
+instr_memory[32'd85]=8'b00100000;
+instr_memory[32'd86]=8'b00011000;
+instr_memory[32'd87]=8'b00100000;
+
   end 
 
   always@(negedge clk) begin
-    decode_instr=instr;
+  if (reset) begin
+	pc=32'd0;
+	full_r=0;
+  end else begin
+  if (wr_en) begin
+    if(inp_valid_i) begin
+		decode_instr=instr;
+	 end else begin
+		full_r=0;
+	 end
+	end
     a=pc+32'd1;
     b=pc+32'd2;
     c=pc+32'd3;
     instr = {instr_memory[pc],instr_memory[a],instr_memory[b],instr_memory[c]};
-//  $display("fetch %t %b %b %b %b",$time,instr_memory[pc],instr_memory[a],instr_memory[b],instr_memory[c]);
+  $display("fetch %t %b %b %b %b",$time,instr_memory[pc],instr_memory[a],instr_memory[b],instr_memory[c]);
 	 $display("fetch %t %b",$time,instr);
     if (branch_instr[15])
         sign_extension = 14'b11111111111111;
@@ -89,6 +200,7 @@ module processor(
 
     $display("branch %b zero %b",branch , fetch_zero);
     $display("branch & zero %b",branch & fetch_zero);
+	 $display("branch_instr %b",branch_instr);
     $display("pc %b",pc);
     $display("sgn_extnd_signal %b",sgn_extnd_signal);
     $display("sign_extension %b",sign_extension);
@@ -97,11 +209,14 @@ module processor(
     prev_instr=instr;
     prev_pc=pc;
   end
-
+end
   
 
   always @(negedge clk) begin   
-    $display("decode %t %b",$time,decode_instr);
+  if (reset) begin
+	decode_instr=32'd0;
+	end
+     $display("decode %t %b",$time,decode_instr);
     reg_dst=(~decode_instr[31] & (~decode_instr[30]) & (~decode_instr[29]) & (~decode_instr[28]) & (~decode_instr[27]) & (~decode_instr[26]));
 
     reg_wr=((~decode_instr[31]) & (~decode_instr[30]) & (~decode_instr[29]) & (~decode_instr[28]) & (~decode_instr[27]) & (~decode_instr[26]))|
@@ -348,7 +463,7 @@ module processor(
 
       if(jump) begin
         jump_instr=decode_instr;
-        jump_pc=pc-32'd8; // Pretty confusing here dont know whether the pc has already increment by the time this assignment is done or not. Assuming it has been done for now
+        jump_pc=pc-32'd4; 
       end
       else begin
         jump_instr=32'bxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx;
@@ -373,5 +488,6 @@ module processor(
       $display("decode main_memory[rw] %b",main_memory[rw]);
       $display("data_memory[ALU_Out] %b\n",data_memory[ALU_Out]);
     end
-
+assign inp_ready_o = wr_en;
+assign out_valid_o = full_r;
 endmodule
